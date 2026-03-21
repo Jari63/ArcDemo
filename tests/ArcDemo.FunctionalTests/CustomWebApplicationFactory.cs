@@ -1,0 +1,90 @@
+﻿using ArcDemo.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Testcontainers.MsSql;
+
+namespace ArcDemo.FunctionalTests;
+
+public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram>, IAsyncLifetime where TProgram : class
+{
+  private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
+    .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+    .WithPassword("Your_password123!")
+    .Build();
+
+  public async Task InitializeAsync()
+  {
+    await _dbContainer.StartAsync();
+  }
+
+  public new async Task DisposeAsync()
+  {
+    await _dbContainer.DisposeAsync();
+  }
+
+  /// <summary>
+  /// Overriding CreateHost to avoid creating a separate ServiceProvider per this thread:
+  /// https://github.com/dotnet-architecture/eShopOnWeb/issues/465
+  /// </summary>
+  /// <param name="builder"></param>
+  /// <returns></returns>
+  protected override IHost CreateHost(IHostBuilder builder)
+  {
+    builder.UseEnvironment("Testing"); // will not send real emails
+    var host = builder.Build();
+    host.Start();
+
+    // Get service provider.
+    var serviceProvider = host.Services;
+
+    // Create a scope to obtain a reference to the database
+    // context (AppDbContext).
+    using (var scope = serviceProvider.CreateScope())
+    {
+      var scopedServices = scope.ServiceProvider;
+      var db = scopedServices.GetRequiredService<AppDbContext>();
+
+      var logger = scopedServices
+          .GetRequiredService<ILogger<CustomWebApplicationFactory<TProgram>>>();
+
+      try
+      {
+        // Apply migrations to create the database schema
+        db.Database.Migrate();
+        
+        // Seed the database with test data.
+        SeedData.PopulateTestDataAsync(db).Wait();
+      }
+      catch (Exception ex)
+      {
+        logger.LogError(ex, "An error occurred seeding the " +
+                            "database with test messages. Error: {exceptionMessage}", ex.Message);
+      }
+    }
+
+    return host;
+  }
+
+  protected override void ConfigureWebHost(IWebHostBuilder builder)
+  {
+    builder
+        .ConfigureServices(services =>
+        {
+          // Remove the app's ApplicationDbContext registration
+          var descriptors = services.Where(
+            d => d.ServiceType == typeof(AppDbContext) ||
+                 d.ServiceType == typeof(DbContextOptions<AppDbContext>))
+                .ToList();
+
+          foreach (var descriptor in descriptors)
+          {
+            services.Remove(descriptor);
+          }
+
+          // Add ApplicationDbContext using the Testcontainers SQL Server instance
+          services.AddDbContext<AppDbContext>((provider, options) =>
+          {
+            options.UseSqlServer(_dbContainer.GetConnectionString());
+          });
+        });
+  }
+}

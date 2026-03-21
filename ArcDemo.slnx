@@ -1,0 +1,33 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".template.config/template.json" />
+    <File Path="CleanArchitecture.nuspec" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ArcDemo.Core/ArcDemo.Core.csproj" />
+    <Project Path="src/ArcDemo.Infrastructure/ArcDemo.Infrastructure.csproj" />
+    <Project Path="src/ArcDemo.UseCases/ArcDemo.UseCases.csproj" />
+    <Project Path="src/ArcDemo.Web/ArcDemo.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/_aspire/">
+    <Project Path="src/ArcDemo.AspireHost/ArcDemo.AspireHost.csproj" />
+    <Project Path="src/ArcDemo.ServiceDefaults/ArcDemo.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArcDemo.FunctionalTests/ArcDemo.FunctionalTests.csproj">
+      <BuildDependency Project="src/ArcDemo.Web/ArcDemo.Web.csproj" />
+    </Project>
+    <Project Path="tests/ArcDemo.IntegrationTests/ArcDemo.IntegrationTests.csproj">
+      <BuildDependency Project="src/ArcDemo.Infrastructure/ArcDemo.Infrastructure.csproj" />
+    </Project>
+    <Project Path="tests/ArcDemo.UnitTests/ArcDemo.UnitTests.csproj" />
+  </Folder>
+</Solution>
