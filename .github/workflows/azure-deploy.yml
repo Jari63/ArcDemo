@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '10.x'
-  SOLUTION_FILE: 'ArcDemo.slnx'
-  WEB_PROJECT: 'src/ArcDemo.Web/ArcDemo.Web.csproj'
-  PUBLISH_DIR: '${{ github.workspace }}/publish'
+  DOTNET_VERSION: "10.x"
+  SOLUTION_FILE: "ArcDemo.slnx"
+  WEB_PROJECT: "src/ArcDemo.Web/ArcDemo.Web.csproj"
+  PUBLISH_DIR: "${{ github.workspace }}/publish"
 
 jobs:
   test:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-          dotnet-quality: 'preview'   # needed until .NET 10 GA
+          dotnet-quality: "preview" # needed until .NET 10 GA
 
       - name: Restore
         run: dotnet restore "${{ env.SOLUTION_FILE }}"
@@ -54,20 +54,44 @@ jobs:
           retention-days: 14
 
   deploy:
-    name: Publish & Deploy
+    name: Provision & Deploy
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      id-token: write # required for OIDC login
+      contents: read
     environment:
       name: production
       url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
     steps:
       - uses: actions/checkout@v4
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create resource group
+        run: |
+          az group create \
+            --name "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --location "${{ vars.AZURE_LOCATION }}"
+
+      - name: Provision infrastructure
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourceGroup
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: appName=${{ vars.AZURE_WEBAPP_NAME }}
+          deploymentName: arcdemo-${{ github.run_number }}
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-          dotnet-quality: 'preview'
+          dotnet-quality: "preview"
 
       - name: Restore
         run: dotnet restore "${{ env.WEB_PROJECT }}"
