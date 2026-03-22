@@ -11,7 +11,14 @@ param sku string = 'B1'
 @description('The .NET runtime version')
 param dotnetVersion string = 'DOTNET|10.0'
 
+@description('Object ID of the service principal that needs Contributor access to this resource group (different from the application Client ID)')
+param spObjectId string
+
 var planName = '${appName}-plan'
+var contributorRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  'b24988ac-6180-42a0-ab88-20f7382dd24c'
+)
 
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
@@ -35,6 +42,15 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       linuxFxVersion: dotnetVersion
       alwaysOn: sku != 'F1'
     }
+  }
+}
+
+resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, spObjectId, contributorRoleDefinitionId)
+  properties: {
+    roleDefinitionId: contributorRoleDefinitionId
+    principalId: spObjectId
+    principalType: 'ServicePrincipal'
   }
 }
 

@@ -84,7 +84,9 @@ jobs:
           scope: resourceGroup
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: infra/main.bicep
-          parameters: appName=${{ vars.AZURE_WEBAPP_NAME }}
+          parameters: >-
+            appName=${{ vars.AZURE_WEBAPP_NAME }}
+            spObjectId=${{ vars.AZURE_SP_OBJECT_ID }}
           deploymentName: arcdemo-${{ github.run_number }}
 
       - name: Setup .NET SDK
