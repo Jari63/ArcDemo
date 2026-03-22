@@ -71,6 +71,24 @@ if ([string]::IsNullOrWhiteSpace($existingRole) -or $existingRole -eq 'None') {
     Write-Host "    Already assigned."
 }
 
+Write-Host "==> Ensuring User Access Administrator role assignment on subscription"
+$existingUaaRole = az role assignment list `
+    --assignee $spObjectId `
+    --role "User Access Administrator" `
+    --scope "/subscriptions/$SubscriptionId" `
+    --query "[0].id" -o tsv 2>$null
+if ([string]::IsNullOrWhiteSpace($existingUaaRole) -or $existingUaaRole -eq 'None') {
+    Write-Host "    Assigning User Access Administrator role..."
+    az role assignment create `
+        --assignee-object-id $spObjectId `
+        --assignee-principal-type ServicePrincipal `
+        --role "User Access Administrator" `
+        --scope "/subscriptions/$SubscriptionId" | Out-Null
+    Write-Host "    Assigned."
+} else {
+    Write-Host "    Already assigned."
+}
+
 Write-Host "==> Ensuring federated credential exists for environment: $Environment"
 $subject = "repo:${GitHubOrg}/${GitHubRepo}:environment:${Environment}"
 $existing = az ad app federated-credential list --id $appClientId `
@@ -105,6 +123,6 @@ Write-Host "  AZURE_TENANT_ID       = $tenantId"
 Write-Host "  AZURE_SUBSCRIPTION_ID = $SubscriptionId"
 Write-Host "  AZURE_SP_OBJECT_ID    = $spObjectId"
 Write-Host ""
-Write-Host "The service principal now has Contributor on the subscription."
+Write-Host "The service principal now has Contributor and User Access Administrator on the subscription."
 Write-Host "Push to main (or trigger the workflow manually) to deploy."
 Write-Host "==========================================================="
