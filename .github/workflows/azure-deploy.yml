@@ -76,7 +76,8 @@ jobs:
         run: |
           az group create \
             --name "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --location "${{ vars.AZURE_LOCATION }}"
+            --location "${{ vars.AZURE_LOCATION }}" \
+            --subscription "${{ vars.AZURE_SUBSCRIPTION_ID }}"
 
       - name: Provision infrastructure
         uses: azure/arm-deploy@v2
