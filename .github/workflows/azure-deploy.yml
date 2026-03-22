@@ -1,0 +1,86 @@
+name: CI / Deploy to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.x'
+  SOLUTION_FILE: 'ArcDemo.slnx'
+  WEB_PROJECT: 'src/ArcDemo.Web/ArcDemo.Web.csproj'
+  PUBLISH_DIR: '${{ github.workspace }}/publish'
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'preview'   # needed until .NET 10 GA
+
+      - name: Restore
+        run: dotnet restore "${{ env.SOLUTION_FILE }}"
+
+      - name: Build
+        run: dotnet build "${{ env.SOLUTION_FILE }}" --configuration Release --no-restore
+
+      - name: Unit tests
+        run: >
+          dotnet test "tests/ArcDemo.UnitTests/ArcDemo.UnitTests.csproj"
+          --configuration Release --no-build
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory "${{ github.workspace }}/test-results"
+
+      - name: Integration tests
+        run: >
+          dotnet test "tests/ArcDemo.IntegrationTests/ArcDemo.IntegrationTests.csproj"
+          --configuration Release --no-build
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory "${{ github.workspace }}/test-results"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/test-results/*.trx
+          retention-days: 14
+
+  deploy:
+    name: Publish & Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    environment:
+      name: production
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'preview'
+
+      - name: Restore
+        run: dotnet restore "${{ env.WEB_PROJECT }}"
+
+      - name: Publish
+        run: >
+          dotnet publish "${{ env.WEB_PROJECT }}"
+          --configuration Release --no-restore
+          --output "${{ env.PUBLISH_DIR }}"
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_DIR }}
