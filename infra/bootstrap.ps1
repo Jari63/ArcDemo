@@ -64,7 +64,13 @@ if ([string]::IsNullOrWhiteSpace($existing)) {
         subject   = $subject
         audiences = @('api://AzureADTokenExchange')
     } | ConvertTo-Json -Compress
-    az ad app federated-credential create --id $appClientId --parameters $credJson | Out-Null
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    try {
+        $credJson | Set-Content -Path $tempFile -Encoding utf8
+        az ad app federated-credential create --id $appClientId --parameters "@$tempFile" | Out-Null
+    } finally {
+        Remove-Item $tempFile -ErrorAction SilentlyContinue
+    }
     Write-Host "    Created."
 } else {
     Write-Host "    Already exists."
