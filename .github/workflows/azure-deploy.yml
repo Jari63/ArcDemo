@@ -82,7 +82,7 @@ jobs:
       - name: Provision infrastructure
         uses: azure/arm-deploy@v2
         with:
-          scope: resourceGroup
+          scope: resourcegroup
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: infra/main.bicep
           parameters: >-
